@@ -22,6 +22,9 @@ functions:
                 atype: flag
                 when-true: '--rel_abund'
             -
+                name: n_marker_genes
+                atype: str
+            -
                 name: taxonomic_level
                 atype: option
                 def: mOTU
@@ -37,6 +40,23 @@ functions:
             rtype: counts
             name: ofile
             extension: tsv
+    -
+        nglName: motus_map_snv
+        arg0: ./run_map_snv.sh
+
+        arg1:
+            atype: readset
+            can_gzip: true
+        additional:
+            -
+                name: min_align_len
+                atype: int
+                def: 75
+        return:
+            rtype: mappedreadset
+            name: ofile
+            extension: bam
+            
 init:
     init_cmd: ./run.sh
 

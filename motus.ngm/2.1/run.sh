@@ -28,6 +28,24 @@ if ! which cut >/dev/null ; then
     exit 1
 fi
 
+#try to find motus2 in users PATH. This should make iteasy for occassional and one time user to set up the analyses
+motus_path="$(which motus)"
+if [[ ! -z "$motus_path" ]]; then
+    v=$(motus --version)
+    version="$(echo $v | cut -d ' ' -f2 | cut -d '.' -f-2)" #trim away the name to return only the version number
+#    echo $version
+    ABSOLUTE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")" #returns the path of the running script
+    path_version="$(echo $ABSOLUTE_PATH | rev | cut -d '/' -f2 | rev)"
+#    echo $path_version
+    if [[ ! $version == $path_version ]]; then
+        motus_path="${NGLESS_MODULE_DIR}/mOTUs_v2/motus"
+        echo "The motus in your path is different from the version of the motus that this script expects $ABSOLUTE_PATH. Moving on to check the locations specified by ngless or if you want to use your path, then load motus2 version $path_version"
+    fi
+else
+    echo "motu not found in the PATH - moving on  to check the ngless location"
+    motus_path="${NGLESS_MODULE_DIR}/mOTUs_v2/motus"
+fi
+
 if ! python -c 'import sys; not (sys.version_info.major == 3) and sys.exit(1)' >/dev/null ; then
     echo "Incompatible python version: need 3.x"
     exit 1
@@ -41,7 +59,7 @@ if [[ -z "$1" ]] ; then
     fi
 else
     # Parsing arguments passed
-    ARG_PARSE="getopt -o s:Io:t:a -l sample:,speci_only,ofile:,taxonomic_level:,rel_abund -n $0 --"
+    ARG_PARSE="getopt -o s:Io:M:t:a -l sample:,speci_only,ofile:,n_marker_genes:,taxonomic_level:,rel_abund -n $0 --"
 
     # We process arguments twice to handle any argument parsing error:
     ARG_ERROR=$($ARG_PARSE "$@" 2>&1 1>/dev/null)
@@ -70,6 +88,7 @@ else
     # to -c (counts) and unset RELABUND if user asked for --rel_abund
     RELABUND="-c"
     TAXLEVEL=""
+    MG_CUTOFF=""
 
     while true; do
         case "$1" in
@@ -91,6 +110,11 @@ else
             -o|--ofile)
                 shift
                 OUTPUT="$1"
+                shift
+                ;;
+            -M|--n_marker_genes)
+                shift
+                MG_CUTOFF="$1"
                 shift
                 ;;
             -t|--taxonomic_level)
@@ -133,10 +157,11 @@ else
 
     export PATH=$TMPBINDIR:$PATH
 
-    "$NGLESS_MODULE_DIR/mOTUs_v2/motus" profile \
+    "$motus_path" profile \
         ${SPECI} \
         $RELABUND \
         -t "$NGLESS_NR_CORES" \
+        -g "${MG_CUTOFF}" \
         -k "${TAXLEVEL}" \
         -n "${SAMPLE}" \
         -o "${TMPBINDIR}/output.txt" \
